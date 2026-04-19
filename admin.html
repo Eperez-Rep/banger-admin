@@ -329,23 +329,23 @@
   </div>
 
   <script>
-    /* ── Config ── */
-    var ADMIN_PASS        = "Banger*admin";
-    var SHEETDB_URL       = "https://sheetdb.io/api/v1/jo10ckzatecba";
-    var CLOUDINARY_URL    = "https://api.cloudinary.com/v1_1/dx2vhhndc/image/upload";
-    var CLOUDINARY_PRESET = "banger_upload";
+    /* ══════════════════════════════════════
+       CONFIG
+    ══════════════════════════════════════ */
+    var ADMIN_PASS = "Banger*admin";
+    var SHEETDB_URL = "https://sheetdb.io/api/v1/jo10ckzatecba";
     var MARCAS_OK = [
       "BIG CHIEF","BOUTIQUE","DOZO","ELF","GHOST","HALF BAKED",
       "JUNGLE BOYS","MUHAMEDS","PACKMAN","PHENOM","PULSE","AIRIS",
       "SLUGGERS","TORCH","UNIVERSITY","VIVA LA HEMP"
     ];
 
-    var uploadedUrl = "";
-    var uploading   = false;
+    /* Estado global — UN SOLO archivo seleccionado */
+    var archivoSeleccionado = null;
 
-    /* ══════════════════════
+    /* ══════════════════════════════════════
        LOGIN
-    ══════════════════════ */
+    ══════════════════════════════════════ */
     function tryLogin() {
       if (document.getElementById("login-pass").value === ADMIN_PASS) {
         document.getElementById("login-screen").classList.add("oculto");
@@ -361,17 +361,16 @@
       if (e.key === "Enter") tryLogin();
     });
 
-    /* ══════════════════════
-       IMAGE UPLOAD
-    ══════════════════════ */
+    /* ══════════════════════════════════════
+       PREVIEW LOCAL (solo FileReader, sin upload)
+    ══════════════════════════════════════ */
     document.getElementById("adm-imagen-file").addEventListener("change", function(e) {
       var file = e.target.files[0];
-      if (!file) return;
+      if (!file) { archivoSeleccionado = null; return; }
 
-      uploadedUrl = "";
-      uploading   = true;
+      archivoSeleccionado = file;
 
-      /* Local preview */
+      /* Mostrar preview local */
       var reader = new FileReader();
       reader.onload = function(ev) {
         document.getElementById("img-preview").src = ev.target.result;
@@ -380,52 +379,22 @@
       reader.readAsDataURL(file);
 
       document.getElementById("file-label-txt").textContent = file.name;
-      setStatus("visible", "⏳ Subiendo...");
-
-      /* Cloudinary upload — XHR para evitar conflicto con Live Server */
-      var formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", "banger_upload");
-
-      var xhr = new XMLHttpRequest();
-      xhr.open("POST", CLOUDINARY_URL, true);
-      xhr.onload = function() {
-        uploading = false;
-        try {
-          var data = JSON.parse(xhr.responseText);
-          if (data.secure_url) {
-            uploadedUrl = data.secure_url;
-            setStatus("visible ok", "✓ Lista");
-            setTimeout(clearStatus, 2000);
-          } else {
-            var msg = data.error && data.error.message ? data.error.message : "Error Cloudinary";
-            console.error("Cloudinary error:", data);
-            setStatus("visible err", "✕ " + msg);
-          }
-        } catch(e) {
-          setStatus("visible err", "✕ Error al procesar respuesta");
-        }
-      };
-      xhr.onerror = function() {
-        uploading = false;
-        setStatus("visible err", "✕ Error de red");
-      };
-      xhr.send(formData);
+      setStatus("visible", "📎 Lista para subir");
     });
 
+    /* ══════════════════════════════════════
+       HELPERS UI
+    ══════════════════════════════════════ */
     function setStatus(cls, txt) {
       var el = document.getElementById("img-upload-status");
       el.className = cls;
       el.textContent = txt;
     }
     function clearStatus() {
-      document.getElementById("img-upload-status").className = "";
-      document.getElementById("img-upload-status").textContent = "";
+      var el = document.getElementById("img-upload-status");
+      el.className = "";
+      el.textContent = "";
     }
-
-    /* ══════════════════════
-       HELPERS
-    ══════════════════════ */
     function showMsg(txt, ok) {
       var el = document.getElementById("adm-msg");
       el.textContent = txt;
@@ -433,11 +402,24 @@
       el.style.display = "block";
       el.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }
+    function resetForm(btn) {
+      document.getElementById("adm-nombre").value = "";
+      document.getElementById("adm-precio").value = "";
+      document.getElementById("adm-genetica").value = "";
+      document.getElementById("adm-imagen-file").value = "";
+      document.getElementById("file-label-txt").textContent = "Seleccionar imagen desde el dispositivo";
+      document.getElementById("img-preview-wrap").style.display = "none";
+      archivoSeleccionado = null;
+      clearStatus();
+      btn.textContent = "Agregar producto";
+      btn.disabled = false;
+    }
 
-    /* ══════════════════════
-       SUBMIT
-    ══════════════════════ */
+    /* ══════════════════════════════════════
+       SUBMIT — upload + guardado en un solo flujo
+    ══════════════════════════════════════ */
     document.getElementById("adm-submit").addEventListener("click", function() {
+      var btn      = document.getElementById("adm-submit");
       var nombre   = document.getElementById("adm-nombre").value.trim();
       var precio   = document.getElementById("adm-precio").value.trim();
       var tipo     = document.getElementById("adm-tipo").value;
@@ -445,53 +427,83 @@
 
       document.getElementById("adm-msg").style.display = "none";
 
+      /* Validaciones */
       if (!nombre) { showMsg("⚠ El nombre es obligatorio.", false); return; }
-
       var marcaOk = MARCAS_OK.some(function(m) {
         return nombre.toUpperCase().indexOf(m) !== -1;
       });
       if (!marcaOk) { showMsg("✕ Marca no autorizada.", false); return; }
-
       var precioNum = parseFloat(String(precio).replace(/[^0-9.]/g, ""));
       if (!precio || isNaN(precioNum) || precioNum <= 0) {
         showMsg("⚠ Precio inválido. Ingresá un número mayor a 0.", false); return;
       }
+      if (!archivoSeleccionado) { showMsg("⚠ Seleccioná una imagen primero.", false); return; }
 
-      if (uploading) { showMsg("⏳ Esperá que termine de subir la imagen.", false); return; }
-      if (!uploadedUrl) { showMsg("⚠ Seleccioná una imagen primero.", false); return; }
-
-      var btn = document.getElementById("adm-submit");
-      btn.textContent = "Guardando...";
+      btn.textContent = "Subiendo imagen...";
       btn.disabled = true;
+      setStatus("visible", "⏳ Subiendo...");
 
-      fetch(SHEETDB_URL, {
+      /* PASO 1 — Upload a Cloudinary (unsigned preset) */
+      var fd = new FormData();
+      fd.append("file", archivoSeleccionado);
+      fd.append("upload_preset", "banger_upload");
+
+      fetch("https://api.cloudinary.com/v1_1/dx2vhhndc/image/upload", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          data: [{
-            nombre:   nombre,
-            precio:   Math.round(precioNum),
-            imagen:   uploadedUrl,
-            tipo:     tipo,
-            genetica: genetica
-          }]
-        })
+        body: fd
       })
-      .then(function(r) { return r.json(); })
-      .then(function() {
-        showMsg("✓ Producto agregado. Ya aparece en la web.", true);
-        document.getElementById("adm-nombre").value = "";
-        document.getElementById("adm-precio").value = "";
-        document.getElementById("adm-genetica").value = "";
-        document.getElementById("adm-imagen-file").value = "";
-        document.getElementById("file-label-txt").textContent = "Seleccionar imagen desde el dispositivo";
-        document.getElementById("img-preview-wrap").style.display = "none";
-        uploadedUrl = "";
-        btn.textContent = "Agregar producto";
-        btn.disabled = false;
+      .then(function(res) { return res.json(); })
+      .then(function(data) {
+        if (!data.secure_url) {
+          var msg = data.error && data.error.message ? data.error.message : "Error al subir imagen";
+          setStatus("visible err", "✕ " + msg);
+          showMsg("✕ " + msg, false);
+          btn.textContent = "Agregar producto";
+          btn.disabled = false;
+          return;
+        }
+
+        var imagenUrl = data.secure_url;
+        setStatus("visible ok", "✓ Imagen lista");
+        btn.textContent = "Guardando producto...";
+
+        /* PASO 2 — Guardar en SheetDB */
+        fetch(SHEETDB_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            data: {
+              nombre:   nombre,
+              precio:   Math.round(precioNum),
+              imagen:   imagenUrl,
+              tipo:     tipo,
+              genetica: genetica
+            }
+          })
+        })
+        .then(function(r) { return r.json(); })
+        .then(function(resp) {
+          /* SheetDB devuelve { created: 1 } si OK, o { error: "..." } si falla */
+          if (resp && (resp.created || resp.created === 0)) {
+            setStatus("visible ok", "✓ Guardado");
+            showMsg("✓ Producto agregado. Ya aparece en la web.", true);
+            setTimeout(function() { resetForm(btn); }, 1500);
+          } else {
+            var errMsg = resp && resp.error ? resp.error : JSON.stringify(resp);
+            showMsg("✕ SheetDB: " + errMsg, false);
+            btn.textContent = "Agregar producto";
+            btn.disabled = false;
+          }
+        })
+        .catch(function(err) {
+          showMsg("✕ Error al conectar con SheetDB.", false);
+          btn.textContent = "Agregar producto";
+          btn.disabled = false;
+        });
       })
       .catch(function() {
-        showMsg("✕ Error al conectar con SheetDB.", false);
+        setStatus("visible err", "✕ Error de red");
+        showMsg("✕ Error de red al subir imagen.", false);
         btn.textContent = "Agregar producto";
         btn.disabled = false;
       });
