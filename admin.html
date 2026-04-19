@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BANGER — Admin</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Anton&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:           #0a0a0a;
+      --glass-bg:     rgba(255,255,255,0.04);
+      --glass-border: rgba(255,255,255,0.10);
+      --border:       rgba(255,255,255,0.08);
+      --text:         #f0f0f0;
+      --muted:        #777;
+      --accent:       #ff4d4d;
+      --ok:           #4dff91;
+      --radius:       12px;
+    }
+
+    html, body {
+      min-height: 100%;
+      background: var(--bg);
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+    }
+
+    body {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 2rem 1rem 5rem;
+    }
+
+    /* ═══ LOGIN ═══ */
+    #login-screen {
+      position: fixed;
+      inset: 0;
+      background: var(--bg);
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+    }
+    #login-screen.oculto { display: none; }
+
+    .login-wrap {
+      width: 100%;
+      max-width: 360px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 2.5rem 1.75rem;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .login-logo {
+      font-family: 'Anton', sans-serif;
+      font-size: 2.8rem;
+      letter-spacing: 0.1em;
+      text-align: center;
+      margin-bottom: 0.3rem;
+    }
+    .login-sub {
+      font-size: 0.7rem;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+    #login-error {
+      font-size: 0.82rem;
+      color: var(--accent);
+      text-align: center;
+      margin-top: 0.75rem;
+      display: none;
+    }
+
+    /* ═══ HEADER ═══ */
+    .adm-header {
+      width: 100%;
+      max-width: 480px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 1.75rem;
+    }
+    .adm-logo {
+      font-family: 'Anton', sans-serif;
+      font-size: 1.9rem;
+      letter-spacing: 0.08em;
+    }
+    .adm-badge {
+      font-size: 0.65rem;
+      font-weight: 600;
+      letter-spacing: 0.14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      border: 1px solid var(--border);
+      padding: 0.25rem 0.65rem;
+      border-radius: 4px;
+    }
+
+    /* ═══ CARD ═══ */
+    .adm-card {
+      width: 100%;
+      max-width: 480px;
+      background: var(--glass-bg);
+      border: 1px solid var(--glass-border);
+      border-radius: var(--radius);
+      padding: 2rem 1.5rem;
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+    }
+    .adm-card__title {
+      font-family: 'Anton', sans-serif;
+      font-size: 1.1rem;
+      letter-spacing: 0.06em;
+      margin-bottom: 1.5rem;
+    }
+
+    /* ═══ FORM ═══ */
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.4rem;
+      margin-bottom: 1.1rem;
+    }
+    .form-group label {
+      font-size: 0.72rem;
+      font-weight: 600;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .form-group input,
+    .form-group select {
+      background: rgba(255,255,255,0.05);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-family: 'Inter', sans-serif;
+      font-size: 0.92rem;
+      padding: 0.7rem 0.9rem;
+      width: 100%;
+      outline: none;
+      transition: border-color 0.2s;
+      -webkit-appearance: none;
+      appearance: none;
+    }
+    .form-group input:focus,
+    .form-group select:focus { border-color: rgba(255,255,255,0.28); }
+    .form-group input::placeholder { color: var(--muted); }
+    .form-group select option { background: #1a1a1a; color: var(--text); }
+
+    /* ── File input ── */
+    .file-label {
+      display: flex;
+      align-items: center;
+      gap: 0.65rem;
+      background: rgba(255,255,255,0.05);
+      border: 1px dashed var(--glass-border);
+      border-radius: 8px;
+      padding: 0.85rem 1rem;
+      cursor: pointer;
+      transition: border-color 0.2s, background 0.2s;
+      font-size: 0.88rem;
+      color: var(--muted);
+    }
+    .file-label:hover {
+      border-color: rgba(255,255,255,0.25);
+      background: rgba(255,255,255,0.07);
+      color: var(--text);
+    }
+    #adm-imagen-file { display: none; }
+
+    /* ── Preview ── */
+    #img-preview-wrap {
+      display: none;
+      margin-top: 0.65rem;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+      position: relative;
+    }
+    #img-preview {
+      width: 100%;
+      max-height: 200px;
+      object-fit: cover;
+      display: block;
+    }
+    #img-upload-status {
+      position: absolute;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.65);
+      font-size: 0.82rem;
+      font-weight: 600;
+      letter-spacing: 0.05em;
+      color: var(--text);
+    }
+    #img-upload-status.visible { display: flex; }
+    #img-upload-status.ok  { color: var(--ok); }
+    #img-upload-status.err { color: var(--accent); }
+
+    .hint {
+      font-size: 0.7rem;
+      color: var(--muted);
+      line-height: 1.55;
+      margin-top: 0.2rem;
+    }
+
+    /* ═══ BUTTONS ═══ */
+    .btn-primary {
+      width: 100%;
+      background: var(--text);
+      color: #000;
+      border: none;
+      border-radius: 8px;
+      font-family: 'Anton', sans-serif;
+      font-size: 1.05rem;
+      letter-spacing: 0.08em;
+      padding: 0.9rem 1rem;
+      cursor: pointer;
+      transition: opacity 0.2s;
+      margin-top: 0.5rem;
+    }
+    .btn-primary:hover:not(:disabled) { opacity: 0.85; }
+    .btn-primary:disabled { opacity: 0.35; cursor: not-allowed; }
+
+    /* ═══ STATUS ═══ */
+    #adm-msg {
+      display: none;
+      font-size: 0.84rem;
+      text-align: center;
+      margin-top: 1rem;
+      padding: 0.7rem 1rem;
+      border-radius: 8px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid var(--border);
+    }
+
+    hr.divider {
+      border: none;
+      border-top: 1px solid var(--border);
+      margin: 1.25rem 0;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- ═══ LOGIN ═══ -->
+  <div id="login-screen">
+    <div class="login-wrap">
+      <p class="login-logo">BANGER</p>
+      <p class="login-sub">Panel de administración</p>
+      <div class="form-group">
+        <label>Contraseña</label>
+        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="off" />
+      </div>
+      <button class="btn-primary" id="login-btn">Ingresar</button>
+      <p id="login-error">✕ Contraseña incorrecta.</p>
+    </div>
+  </div>
+
+  <!-- ═══ PANEL ═══ -->
+  <header class="adm-header">
+    <span class="adm-logo">BANGER</span>
+    <span class="adm-badge">Admin Panel</span>
+  </header>
+
+  <div class="adm-card">
+    <p class="adm-card__title">Agregar Producto</p>
+
+    <div class="form-group">
+      <label>Nombre del producto</label>
+      <input type="text" id="adm-nombre" placeholder="Ej: BIG CHIEF DUO 2G" autocomplete="off" />
+      <span class="hint">Marcas válidas: BIG CHIEF · BOUTIQUE · DOZO · ELF · GHOST · HALF BAKED · JUNGLE BOYS · MUHAMEDS · PACKMAN · PHENOM · PULSE · AIRIS · SLUGGERS · TORCH · UNIVERSITY · VIVA LA HEMP</span>
+    </div>
+
+    <div class="form-group">
+      <label>Precio (número)</label>
+      <input type="number" id="adm-precio" placeholder="Ej: 72500" min="1" inputmode="numeric" />
+    </div>
+
+    <div class="form-group">
+      <label>Imagen del producto</label>
+      <label class="file-label" for="adm-imagen-file">
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+          <circle cx="8.5" cy="8.5" r="1.5"/>
+          <polyline points="21 15 16 10 5 21"/>
+        </svg>
+        <span id="file-label-txt">Seleccionar imagen desde el dispositivo</span>
+      </label>
+      <input type="file" id="adm-imagen-file" accept="image/*" capture="environment" />
+      <div id="img-preview-wrap">
+        <img id="img-preview" alt="Preview" />
+        <div id="img-upload-status"></div>
+      </div>
+    </div>
+
+    <div class="form-group">
+      <label>Tipo</label>
+      <select id="adm-tipo">
+        <option value="thc">THC</option>
+        <option value="nicotina">Nicotina</option>
+      </select>
+    </div>
+
+    <div class="form-group">
+      <label>Genética</label>
+      <input type="text" id="adm-genetica" placeholder="Indica / Sativa / Híbrida" />
+    </div>
+
+    <hr class="divider" />
+
+    <button class="btn-primary" id="adm-submit">Agregar producto</button>
+    <p id="adm-msg"></p>
+  </div>
+
+  <script>
+    /* ── Config ── */
+    var ADMIN_PASS        = "Banger*admin";
+    var SHEETDB_URL       = "https://sheetdb.io/api/v1/jo10ckzatecba";
+    var CLOUDINARY_URL    = "https://api.cloudinary.com/v1_1/dx2vhhndc/image/upload";
+    var CLOUDINARY_PRESET = "banger_upload";
+    var MARCAS_OK = [
+      "BIG CHIEF","BOUTIQUE","DOZO","ELF","GHOST","HALF BAKED",
+      "JUNGLE BOYS","MUHAMEDS","PACKMAN","PHENOM","PULSE","AIRIS",
+      "SLUGGERS","TORCH","UNIVERSITY","VIVA LA HEMP"
+    ];
+
+    var uploadedUrl = "";
+    var uploading   = false;
+
+    /* ══════════════════════
+       LOGIN
+    ══════════════════════ */
+    function tryLogin() {
+      if (document.getElementById("login-pass").value === ADMIN_PASS) {
+        document.getElementById("login-screen").classList.add("oculto");
+        document.getElementById("adm-nombre").focus();
+      } else {
+        document.getElementById("login-error").style.display = "block";
+        document.getElementById("login-pass").value = "";
+        document.getElementById("login-pass").focus();
+      }
+    }
+    document.getElementById("login-btn").addEventListener("click", tryLogin);
+    document.getElementById("login-pass").addEventListener("keydown", function(e) {
+      if (e.key === "Enter") tryLogin();
+    });
+
+    /* ══════════════════════
+       IMAGE UPLOAD
+    ══════════════════════ */
+    document.getElementById("adm-imagen-file").addEventListener("change", function(e) {
+      var file = e.target.files[0];
+      if (!file) return;
+
+      uploadedUrl = "";
+      uploading   = true;
+
+      /* Local preview */
+      var reader = new FileReader();
+      reader.onload = function(ev) {
+        document.getElementById("img-preview").src = ev.target.result;
+        document.getElementById("img-preview-wrap").style.display = "block";
+      };
+      reader.readAsDataURL(file);
+
+      document.getElementById("file-label-txt").textContent = file.name;
+      setStatus("visible", "⏳ Subiendo...");
+
+      /* Cloudinary upload — XHR para evitar conflicto con Live Server */
+      var formData = new FormData();
+      formData.append("file", file);
+      formData.append("upload_preset", "banger_upload");
+
+      var xhr = new XMLHttpRequest();
+      xhr.open("POST", CLOUDINARY_URL, true);
+      xhr.onload = function() {
+        uploading = false;
+        try {
+          var data = JSON.parse(xhr.responseText);
+          if (data.secure_url) {
+            uploadedUrl = data.secure_url;
+            setStatus("visible ok", "✓ Lista");
+            setTimeout(clearStatus, 2000);
+          } else {
+            var msg = data.error && data.error.message ? data.error.message : "Error Cloudinary";
+            console.error("Cloudinary error:", data);
+            setStatus("visible err", "✕ " + msg);
+          }
+        } catch(e) {
+          setStatus("visible err", "✕ Error al procesar respuesta");
+        }
+      };
+      xhr.onerror = function() {
+        uploading = false;
+        setStatus("visible err", "✕ Error de red");
+      };
+      xhr.send(formData);
+    });
+
+    function setStatus(cls, txt) {
+      var el = document.getElementById("img-upload-status");
+      el.className = cls;
+      el.textContent = txt;
+    }
+    function clearStatus() {
+      document.getElementById("img-upload-status").className = "";
+      document.getElementById("img-upload-status").textContent = "";
+    }
+
+    /* ══════════════════════
+       HELPERS
+    ══════════════════════ */
+    function showMsg(txt, ok) {
+      var el = document.getElementById("adm-msg");
+      el.textContent = txt;
+      el.style.color = ok ? "#4dff91" : "#ff4d4d";
+      el.style.display = "block";
+      el.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }
+
+    /* ══════════════════════
+       SUBMIT
+    ══════════════════════ */
+    document.getElementById("adm-submit").addEventListener("click", function() {
+      var nombre   = document.getElementById("adm-nombre").value.trim();
+      var precio   = document.getElementById("adm-precio").value.trim();
+      var tipo     = document.getElementById("adm-tipo").value;
+      var genetica = document.getElementById("adm-genetica").value.trim();
+
+      document.getElementById("adm-msg").style.display = "none";
+
+      if (!nombre) { showMsg("⚠ El nombre es obligatorio.", false); return; }
+
+      var marcaOk = MARCAS_OK.some(function(m) {
+        return nombre.toUpperCase().indexOf(m) !== -1;
+      });
+      if (!marcaOk) { showMsg("✕ Marca no autorizada.", false); return; }
+
+      var precioNum = parseFloat(String(precio).replace(/[^0-9.]/g, ""));
+      if (!precio || isNaN(precioNum) || precioNum <= 0) {
+        showMsg("⚠ Precio inválido. Ingresá un número mayor a 0.", false); return;
+      }
+
+      if (uploading) { showMsg("⏳ Esperá que termine de subir la imagen.", false); return; }
+      if (!uploadedUrl) { showMsg("⚠ Seleccioná una imagen primero.", false); return; }
+
+      var btn = document.getElementById("adm-submit");
+      btn.textContent = "Guardando...";
+      btn.disabled = true;
+
+      fetch(SHEETDB_URL, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: [{
+            nombre:   nombre,
+            precio:   Math.round(precioNum),
+            imagen:   uploadedUrl,
+            tipo:     tipo,
+            genetica: genetica
+          }]
+        })
+      })
+      .then(function(r) { return r.json(); })
+      .then(function() {
+        showMsg("✓ Producto agregado. Ya aparece en la web.", true);
+        document.getElementById("adm-nombre").value = "";
+        document.getElementById("adm-precio").value = "";
+        document.getElementById("adm-genetica").value = "";
+        document.getElementById("adm-imagen-file").value = "";
+        document.getElementById("file-label-txt").textContent = "Seleccionar imagen desde el dispositivo";
+        document.getElementById("img-preview-wrap").style.display = "none";
+        uploadedUrl = "";
+        btn.textContent = "Agregar producto";
+        btn.disabled = false;
+      })
+      .catch(function() {
+        showMsg("✕ Error al conectar con SheetDB.", false);
+        btn.textContent = "Agregar producto";
+        btn.disabled = false;
+      });
+    });
+  </script>
+</body>
+</html>
