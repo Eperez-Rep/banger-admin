@@ -340,9 +340,6 @@
       "SLUGGERS","TORCH","UNIVERSITY","VIVA LA HEMP"
     ];
 
-    /* Estado global — UN SOLO archivo seleccionado */
-    var archivoSeleccionado = null;
-
     /* ══════════════════════════════════════
        LOGIN
     ══════════════════════════════════════ */
@@ -362,24 +359,20 @@
     });
 
     /* ══════════════════════════════════════
-       PREVIEW LOCAL (solo FileReader, sin upload)
+       PREVIEW LOCAL — solo FileReader, sin upload
     ══════════════════════════════════════ */
     document.getElementById("adm-imagen-file").addEventListener("change", function(e) {
       var file = e.target.files[0];
-      if (!file) { archivoSeleccionado = null; return; }
-
-      archivoSeleccionado = file;
-
-      /* Mostrar preview local */
+      if (!file) return;
       var reader = new FileReader();
       reader.onload = function(ev) {
         document.getElementById("img-preview").src = ev.target.result;
         document.getElementById("img-preview-wrap").style.display = "block";
       };
       reader.readAsDataURL(file);
-
       document.getElementById("file-label-txt").textContent = file.name;
-      setStatus("visible", "📎 Lista para subir");
+      setStatus("visible ok", "✓ Lista");
+      setTimeout(clearStatus, 2000);
     });
 
     /* ══════════════════════════════════════
@@ -409,14 +402,14 @@
       document.getElementById("adm-imagen-file").value = "";
       document.getElementById("file-label-txt").textContent = "Seleccionar imagen desde el dispositivo";
       document.getElementById("img-preview-wrap").style.display = "none";
-      archivoSeleccionado = null;
       clearStatus();
       btn.textContent = "Agregar producto";
       btn.disabled = false;
     }
 
     /* ══════════════════════════════════════
-       SUBMIT — upload + guardado en un solo flujo
+       SUBMIT — valida + guarda nombre en SheetDB
+       Sin fetch a servicios externos de imagen
     ══════════════════════════════════════ */
     document.getElementById("adm-submit").addEventListener("click", function() {
       var btn      = document.getElementById("adm-submit");
@@ -424,10 +417,10 @@
       var precio   = document.getElementById("adm-precio").value.trim();
       var tipo     = document.getElementById("adm-tipo").value;
       var genetica = document.getElementById("adm-genetica").value.trim();
+      var imagen   = document.getElementById("adm-imagen-file").files[0];
 
       document.getElementById("adm-msg").style.display = "none";
 
-      /* Validaciones */
       if (!nombre) { showMsg("⚠ El nombre es obligatorio.", false); return; }
       var marcaOk = MARCAS_OK.some(function(m) {
         return nombre.toUpperCase().indexOf(m) !== -1;
@@ -437,73 +430,38 @@
       if (!precio || isNaN(precioNum) || precioNum <= 0) {
         showMsg("⚠ Precio inválido. Ingresá un número mayor a 0.", false); return;
       }
-      if (!archivoSeleccionado) { showMsg("⚠ Seleccioná una imagen primero.", false); return; }
+      if (!imagen) { showMsg("⚠ Seleccioná una imagen primero.", false); return; }
 
-      btn.textContent = "Subiendo imagen...";
+      btn.textContent = "Guardando...";
       btn.disabled = true;
-      setStatus("visible", "⏳ Subiendo...");
 
-      /* PASO 1 — Upload a Cloudinary (unsigned preset) */
-      var fd = new FormData();
-      fd.append("file", archivoSeleccionado);
-      fd.append("upload_preset", "banger_upload");
-
-      fetch("https://api.cloudinary.com/v1_1/dx2vhhndc/image/upload", {
+      fetch(SHEETDB_URL, {
         method: "POST",
-        body: fd
-      })
-      .then(function(res) { return res.json(); })
-      .then(function(data) {
-        if (!data.secure_url) {
-          var msg = data.error && data.error.message ? data.error.message : "Error al subir imagen";
-          setStatus("visible err", "✕ " + msg);
-          showMsg("✕ " + msg, false);
-          btn.textContent = "Agregar producto";
-          btn.disabled = false;
-          return;
-        }
-
-        var imagenUrl = data.secure_url;
-        setStatus("visible ok", "✓ Imagen lista");
-        btn.textContent = "Guardando producto...";
-
-        /* PASO 2 — Guardar en SheetDB */
-        fetch(SHEETDB_URL, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            data: {
-              nombre:   nombre,
-              precio:   Math.round(precioNum),
-              imagen:   imagenUrl,
-              tipo:     tipo,
-              genetica: genetica
-            }
-          })
-        })
-        .then(function(r) { return r.json(); })
-        .then(function(resp) {
-          /* SheetDB devuelve { created: 1 } si OK, o { error: "..." } si falla */
-          if (resp && (resp.created || resp.created === 0)) {
-            setStatus("visible ok", "✓ Guardado");
-            showMsg("✓ Producto agregado. Ya aparece en la web.", true);
-            setTimeout(function() { resetForm(btn); }, 1500);
-          } else {
-            var errMsg = resp && resp.error ? resp.error : JSON.stringify(resp);
-            showMsg("✕ SheetDB: " + errMsg, false);
-            btn.textContent = "Agregar producto";
-            btn.disabled = false;
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          data: {
+            nombre:   nombre,
+            precio:   Math.round(precioNum),
+            imagen:   imagen.name,
+            tipo:     tipo,
+            genetica: genetica
           }
         })
-        .catch(function(err) {
-          showMsg("✕ Error al conectar con SheetDB.", false);
+      })
+      .then(function(r) { return r.json(); })
+      .then(function(resp) {
+        if (resp && (resp.created || resp.created === 0)) {
+          showMsg("✓ Producto agregado. Ya aparece en la web.", true);
+          setTimeout(function() { resetForm(btn); }, 1500);
+        } else {
+          var errMsg = resp && resp.error ? resp.error : JSON.stringify(resp);
+          showMsg("✕ SheetDB: " + errMsg, false);
           btn.textContent = "Agregar producto";
           btn.disabled = false;
-        });
+        }
       })
       .catch(function() {
-        setStatus("visible err", "✕ Error de red");
-        showMsg("✕ Error de red al subir imagen.", false);
+        showMsg("✕ Error al conectar con SheetDB.", false);
         btn.textContent = "Agregar producto";
         btn.disabled = false;
       });
